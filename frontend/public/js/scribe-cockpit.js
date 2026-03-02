@@ -180,21 +180,17 @@
   function rememberXrName(xrId, fullName) {
     const xr = normalizeId(xrId);
     const nm = String(fullName || '').trim();
-    console.log('[SCRIBE] rememberXrName called:', { xrId, normalized: xr, fullName: nm });
     if (!xr || !nm) return;
     xrNameById.set(xr, nm);
-    console.log('[SCRIBE] xrNameById updated:', { xr, nm, cacheSize: xrNameById.size, allNames: Array.from(xrNameById.entries()) });
 
-    // ✅ ADD THIS (persist for refresh)
+    // Persist for refresh
     saveXrNameCache();
   }
 
 
   function fullNameForXrId(xrId) {
     const xr = normalizeId(xrId);
-    const name = xrNameById.get(xr) || '';
-    console.log('[SCRIBE] fullNameForXrId lookup:', { xrId, normalized: xr, name, cacheSize: xrNameById.size });
-    return name;
+    return xrNameById.get(xr) || '';
   }
 
   // Never show XR-#### or Desktop#### in transcript header
@@ -313,7 +309,6 @@
         const name = String(nm || '').trim();
         if (id && name) xrNameById.set(id, name);
       });
-      console.log('[SCRIBE] loadXrNameCache loaded:', { count: xrNameById.size, entries: Array.from(xrNameById.entries()) });
     } catch { }
   }
 
@@ -970,17 +965,22 @@
     });
 
     sorted.forEach((d) => {
-      const name =
-        d?.fullName ||
-        d?.full_name ||
-        d?.deviceName ||
-        d?.name ||
-        (d?.xrId ? `Device (${d.xrId})` : 'Unknown');
+      const fullName = d?.fullName || d?.full_name || '';
+      const xrId = d?.xrId || '';
+
+      let displayName;
+      if (fullName) {
+        // Show "Full Name (XR-ID)" format when full name is available
+        displayName = xrId ? `${fullName} (${xrId})` : fullName;
+      } else {
+        // Fallback to XR-ID if no full name
+        displayName = xrId || 'Unknown';
+      }
 
       const li = document.createElement('li');
       li.className = 'text-gray-300';
-      li.textContent = name;
-      li.dataset.xrId = d?.xrId || '';
+      li.textContent = displayName;
+      li.dataset.xrId = xrId;
 
       dom.deviceList.appendChild(li);
     });
@@ -1226,8 +1226,6 @@
   function createTranscriptCard(item) {
     const { id, from, to, text, timestamp } = item;
 
-    console.log('[SCRIBE] createTranscriptCard called:', { id, from, to, text: text?.substring(0, 50), timestamp });
-
     const card = document.createElement('div');
     card.className = 'scribe-card';
     card.dataset.id = id;
@@ -1236,7 +1234,6 @@
     header.className = 'text-sm mb-1';
     const time = timestamp ? new Date(timestamp).toLocaleTimeString() : new Date().toLocaleTimeString();
     const fromLabel = displayOnlyFullName(from || '');
-    console.log('[SCRIBE] fromLabel resolved:', { from, fromLabel });
     let toLabel;
     const rawTo = String(to || '').trim();
 
@@ -1244,10 +1241,8 @@
     if (!rawTo || /^unknown$/i.test(rawTo)) {
       const peerXr = peerXrIdForFrom(from || '');
       toLabel = peerXr ? displayOnlyFullName(peerXr) : 'Peer';
-      console.log('[SCRIBE] toLabel inferred from peer:', { peerXr, toLabel });
     } else {
       toLabel = displayOnlyFullName(rawTo);
-      console.log('[SCRIBE] toLabel from rawTo:', { rawTo, toLabel });
     }
 
 
