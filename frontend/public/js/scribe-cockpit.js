@@ -1358,10 +1358,14 @@
 
     removeTranscriptPlaceholder();
 
+    // Convert XR-IDs to full names for display
+    const fromName = fullNameForXrId(from) || from || 'Unknown';
+    const toName = fullNameForXrId(to) || to || 'Unknown';
+
     const item = {
       id: uid(),
-      from: from || 'Unknown',
-      to: to || 'Unknown',
+      from: fromName,
+      to: toName,
       text: String(text || '').trim(),
       timestamp: timestamp || Date.now(),
       sequence: sequence || 0,
