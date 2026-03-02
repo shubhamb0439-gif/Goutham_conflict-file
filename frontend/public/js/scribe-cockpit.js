@@ -185,19 +185,22 @@
 
   // Never show XR-#### or Desktop#### in transcript header
   function displayOnlyFullName(xrIdOrLabel) {
-    const raw = String(xrIdOrLabel || '').trim();
+    const raw = String(xrIdOrLabel || '').trim().toUpperCase();
 
-    // If it's an internal ID, replace with name or "Peer"
+    // Always try to get full name first
+    const fullName = fullNameForXrId(raw);
+    if (fullName) return fullName;
+
+    // If it's an internal ID (XR-#### or Desktop####), show "Peer" instead
     const looksInternal =
       /^XR-\d+$/i.test(raw) ||
       /^DESKTOP\d+$/i.test(raw);
 
     if (!raw || looksInternal) {
-      const nm = fullNameForXrId(raw);
-      return nm ? nm : 'Peer';
+      return 'Peer';
     }
 
-    // If server ever sends an already-human label, allow it
+    // If server sends a human-readable label (not in our map), allow it
     return raw;
   }
 
@@ -1230,9 +1233,6 @@
     header.innerHTML = `🗣️ <span class="font-bold">${escapeHtml(fromLabel)}</span>
       <span class="opacity-60">→ ${escapeHtml(toLabel)}</span>
       <span class="opacity-60">(${time})</span>`;
-    header.innerHTML = `🗣️ <span class="font-bold">${escapeHtml(from || 'Unknown')}</span>
-      <span class="opacity-60">→ ${escapeHtml(to || 'Unknown')}</span>
-      <span class="opacity-60">(${escapeHtml(time)})</span>`;
     card.appendChild(header);
 
     const body = document.createElement('div');
@@ -4667,6 +4667,9 @@
 
       ensureAiDiagnosisPaneHeader();
       clearAiDiagnosisPaneUi();
+
+      // Load XR name cache before restoring history so full names display correctly
+      try { loadXrNameCache(); } catch { }
 
       restoreFromLocalStorage();
       wireSoapActionButtons();
