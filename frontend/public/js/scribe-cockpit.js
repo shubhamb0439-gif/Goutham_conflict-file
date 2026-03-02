@@ -167,11 +167,23 @@
   // =====================================================================================
   const xrNameById = new Map();
 
+  // Normalize XR-ID to match app.js format (e.g., "1234" → "XR-1234", "xr-1234" → "XR-1234")
+  function normalizeId(v) {
+    const s = (v || '').trim();
+    if (!s) return '';
+    // If it's just digits, add XR- prefix
+    if (/^\d+$/.test(s)) return `XR-${s}`;
+    // Otherwise uppercase it
+    return s.toUpperCase();
+  }
+
   function rememberXrName(xrId, fullName) {
-    const xr = String(xrId || '').trim().toUpperCase();
+    const xr = normalizeId(xrId);
     const nm = String(fullName || '').trim();
+    console.log('[SCRIBE] rememberXrName called:', { xrId, normalized: xr, fullName: nm });
     if (!xr || !nm) return;
     xrNameById.set(xr, nm);
+    console.log('[SCRIBE] xrNameById updated:', { xr, nm, cacheSize: xrNameById.size, allNames: Array.from(xrNameById.entries()) });
 
     // ✅ ADD THIS (persist for refresh)
     saveXrNameCache();
@@ -179,22 +191,25 @@
 
 
   function fullNameForXrId(xrId) {
-    const xr = String(xrId || '').trim().toUpperCase();
-    return xrNameById.get(xr) || '';
+    const xr = normalizeId(xrId);
+    const name = xrNameById.get(xr) || '';
+    console.log('[SCRIBE] fullNameForXrId lookup:', { xrId, normalized: xr, name, cacheSize: xrNameById.size });
+    return name;
   }
 
   // Never show XR-#### or Desktop#### in transcript header
   function displayOnlyFullName(xrIdOrLabel) {
-    const raw = String(xrIdOrLabel || '').trim().toUpperCase();
+    const raw = String(xrIdOrLabel || '').trim();
 
-    // Always try to get full name first
+    // Always try to get full name first (normalizeId handles the format)
     const fullName = fullNameForXrId(raw);
     if (fullName) return fullName;
 
     // If it's an internal ID (XR-#### or Desktop####), show "Peer" instead
     const looksInternal =
       /^XR-\d+$/i.test(raw) ||
-      /^DESKTOP\d+$/i.test(raw);
+      /^DESKTOP\d+$/i.test(raw) ||
+      /^\d+$/.test(raw); // Also match plain numbers like "9001"
 
     if (!raw || looksInternal) {
       return 'Peer';
@@ -212,9 +227,9 @@
     const m = room.match(/^pair:([^:]+):([^:]+)$/i);
     if (!m) return '';
 
-    const a = String(m[1] || '').trim().toUpperCase();
-    const b = String(m[2] || '').trim().toUpperCase();
-    const f = String(fromXrId || '').trim().toUpperCase();
+    const a = normalizeId(m[1]);
+    const b = normalizeId(m[2]);
+    const f = normalizeId(fromXrId);
 
     if (!a || !b || !f) return '';
     if (f === a) return b;
@@ -294,10 +309,11 @@
       const raw = lsSafeParse(LS_KEYS.XR_NAMES(), {}) || {};
       xrNameById.clear();
       Object.entries(raw).forEach(([xr, nm]) => {
-        const id = String(xr || '').trim().toUpperCase();
+        const id = normalizeId(xr);
         const name = String(nm || '').trim();
         if (id && name) xrNameById.set(id, name);
       });
+      console.log('[SCRIBE] loadXrNameCache loaded:', { count: xrNameById.size, entries: Array.from(xrNameById.entries()) });
     } catch { }
   }
 
@@ -910,7 +926,7 @@
 
     const keys = devices
       .map((d) => {
-        const xr = String(d?.xrId || '').trim().toUpperCase();
+        const xr = normalizeId(d?.xrId);
         if (!xr) return '';
         const nm = String(
           d?.fullName ||
@@ -919,7 +935,7 @@
           d?.name ||
           ''
         ).trim();
-        rememberXrName(xr, nm); // ✅ ADD THIS LINE
+        rememberXrName(xr, nm); // Store normalized XR-ID → Full Name
         // include name in the key so UI re-renders when fullName arrives later
         return `${xr}:${nm}`;
       })
@@ -1210,6 +1226,8 @@
   function createTranscriptCard(item) {
     const { id, from, to, text, timestamp } = item;
 
+    console.log('[SCRIBE] createTranscriptCard called:', { id, from, to, text: text?.substring(0, 50), timestamp });
+
     const card = document.createElement('div');
     card.className = 'scribe-card';
     card.dataset.id = id;
@@ -1218,6 +1236,7 @@
     header.className = 'text-sm mb-1';
     const time = timestamp ? new Date(timestamp).toLocaleTimeString() : new Date().toLocaleTimeString();
     const fromLabel = displayOnlyFullName(from || '');
+    console.log('[SCRIBE] fromLabel resolved:', { from, fromLabel });
     let toLabel;
     const rawTo = String(to || '').trim();
 
@@ -1225,8 +1244,10 @@
     if (!rawTo || /^unknown$/i.test(rawTo)) {
       const peerXr = peerXrIdForFrom(from || '');
       toLabel = peerXr ? displayOnlyFullName(peerXr) : 'Peer';
+      console.log('[SCRIBE] toLabel inferred from peer:', { peerXr, toLabel });
     } else {
       toLabel = displayOnlyFullName(rawTo);
+      console.log('[SCRIBE] toLabel from rawTo:', { rawTo, toLabel });
     }
 
 
