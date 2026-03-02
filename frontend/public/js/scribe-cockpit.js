@@ -3140,10 +3140,19 @@
     });
 
     sorted.forEach((d) => {
-      const name = d?.deviceName || d?.name || (d?.xrId ? `Device (${d.xrId})` : 'Unknown');
+      const fullName = d?.fullName || d?.full_name || '';
+      const xrId = d?.xrId || '';
+
+      let displayName;
+      if (fullName) {
+        displayName = xrId ? `${fullName} (${xrId})` : fullName;
+      } else {
+        displayName = xrId || 'Unknown';
+      }
+
       const li = document.createElement('li');
       li.className = 'text-gray-300';
-      li.textContent = d?.xrId ? `${name} (${d.xrId})` : name;
+      li.textContent = displayName;
       dom.deviceList.appendChild(li);
     });
 
