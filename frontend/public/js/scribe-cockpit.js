@@ -197,6 +197,8 @@
   function displayOnlyFullName(xrIdOrLabel) {
     const raw = String(xrIdOrLabel || '').trim();
 
+    if (!raw) return 'Peer';
+
     // Always try to get full name first (normalizeId handles the format)
     const fullName = fullNameForXrId(raw);
     if (fullName) return fullName;
@@ -207,11 +209,16 @@
       /^DESKTOP\d+$/i.test(raw) ||
       /^\d+$/.test(raw); // Also match plain numbers like "9001"
 
-    if (!raw || looksInternal) {
+    if (looksInternal) {
       return 'Peer';
     }
 
     // If server sends a human-readable label (not in our map), allow it
+    // But don't show "Unknown" - convert it to "Peer"
+    if (/^unknown$/i.test(raw)) {
+      return 'Peer';
+    }
+
     return raw;
   }
 
@@ -1358,14 +1365,11 @@
 
     removeTranscriptPlaceholder();
 
-    // Convert XR-IDs to full names for display
-    const fromName = fullNameForXrId(from) || from || 'Unknown';
-    const toName = fullNameForXrId(to) || to || 'Unknown';
-
+    // Store the original XR-IDs so we can look up names dynamically later
     const item = {
       id: uid(),
-      from: fromName,
-      to: toName,
+      from: from || 'Unknown',
+      to: to || 'Unknown',
       text: String(text || '').trim(),
       timestamp: timestamp || Date.now(),
       sequence: sequence || 0,
@@ -3159,6 +3163,12 @@
       li.textContent = displayName;
       dom.deviceList.appendChild(li);
     });
+
+    // Refresh transcript list to update any "Peer" labels with newly arrived full names
+    const hist = normalizeHistoryItems(loadHistory());
+    if (hist.length > 0) {
+      renderTranscriptList(hist);
+    }
 
     updateConnectionStatus('device_list', devices);
   }
