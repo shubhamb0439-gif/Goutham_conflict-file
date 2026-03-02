@@ -977,8 +977,8 @@
 
       let displayName;
       if (fullName) {
-        // Show "Full Name (XR-ID)" format when full name is available
-        displayName = xrId ? `${fullName} (${xrId})` : fullName;
+        // Show only the full name when available
+        displayName = fullName;
       } else {
         // Fallback to XR-ID if no full name
         displayName = xrId || 'Unknown';
