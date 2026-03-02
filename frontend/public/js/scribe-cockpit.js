@@ -3145,7 +3145,7 @@
 
       let displayName;
       if (fullName) {
-        displayName = xrId ? `${fullName} (${xrId})` : fullName;
+        displayName = fullName;
       } else {
         displayName = xrId || 'Unknown';
       }
